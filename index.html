@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Claw Machine</title>
+    <meta name="description" content="Play the 3D Claw Machine arcade game online. Experience realistic physics, customize your grabber, and win digital prizes in this browser-based simulation.">
+    <meta name="keywords" content="claw machine, arcade game, 3D browser game, physics simulation, online arcade, crane game, webgl game">
+    <meta name="author" content="Chris Pirillo">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://pirillo.com/arcade/claw-machine.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pirillo.com/arcade/claw-machine.html">
+    <meta property="og:title" content="Claw Machine - Visible Lava Arcade">
+    <meta property="og:description" content="Play the 3D Claw Machine arcade game online. Realistic physics, customizable settings, and endless fun.">
+    <meta property="og:image" content="https://pirillo.com/arcade/images/claw-machine.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@ChrisPirillo">
+    <meta name="twitter:creator" content="@ChrisPirillo">
+    <meta name="twitter:url" content="https://pirillo.com/arcade/claw-machine.html">
+    <meta name="twitter:title" content="Claw Machine - Visible Lava Arcade">
+    <meta name="twitter:description" content="Play the 3D Claw Machine arcade game online. Realistic physics, customizable settings, and endless fun.">
+    <meta name="twitter:image" content="https://pirillo.com/arcade/images/claw-machine.png">
+
+    <!-- Performance Hints -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://www.googletagmanager.com">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Claw Machine",
+      "url": "https://pirillo.com/arcade/claw-machine.html",
+      "description": "A 3D arcade claw machine simulation game with realistic physics.",
+      "applicationCategory": "Game",
+      "genre": "Arcade",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires WebGL support",
+      "author": {
+        "@type": "Person",
+        "name": "Chris Pirillo",
+        "url": "https://pirillo.com"
+      },
+      "image": "https://pirillo.com/arcade/images/claw-machine.png",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+
+    <!-- Global Site Tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CQ4D3VQ3L"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1CQ4D3VQ3L');
+    </script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+            z-index: 10;
+        }
+        
+        #hamburger {
+            position: absolute; top: 20px; left: 20px;
+            width: 40px; height: 40px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            gap: 6px;
+            z-index: 50;
+            transition: background 0.2s;
+        }
+        #hamburger:hover { background: rgba(255,255,255,0.2); }
+        .bar { width: 24px; height: 2px; background: white; border-radius: 2px; }
+        
+        #settings-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); pointer-events: auto;
+            display: none; z-index: 40; backdrop-filter: blur(2px);
+        }
+
+        #settings-panel {
+            position: absolute; top: 70px; left: 20px;
+            width: 400px;
+            background: rgba(10, 10, 14, 0.95);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            pointer-events: auto;
+            display: none; 
+            flex-direction: column;
+            gap: 15px;
+            color: #ccc;
+            font-size: 12px;
+            z-index: 50;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.95);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        
+        #settings-panel::-webkit-scrollbar { width: 5px; }
+        #settings-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        #settings-panel::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+
+        .setting-group { margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); padding: 10px; border-radius: 6px; }
+        .group-title { font-weight: 800; color: #ff00cc; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+        .group-content { display: flex; flex-direction: column; gap: 10px; }
+        
+        .setting-row { display: flex; flex-direction: column; gap: 4px; }
+        .setting-label { font-weight: 600; color: #aaa; font-size: 11px; display: flex; justify-content: space-between; }
+        .val-disp { color: #00ffff; font-family: monospace; font-size: 10px; background: rgba(0,255,255,0.05); padding: 1px 4px; border-radius: 3px; }
+        
+        .color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .color-item { display: flex; flex-direction: column; gap: 2px; }
+        input[type=color] { width: 100%; height: 24px; border: none; border-radius: 3px; cursor: pointer; background: none; padding: 0; }
+        
+        input[type=range] { width: 100%; accent-color: #ff00cc; height: 3px; background: #333; border-radius: 2px; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: #eee; border-radius: 50%; cursor: pointer; transition: transform 0.1s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); background: #fff; }
+        
+        .rect-btn {
+            background: linear-gradient(45deg, rgba(255,0,204,0.2), rgba(0,255,255,0.2));
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            color: white; font-weight: bold; font-size: 11px;
+            padding: 10px 0; cursor: pointer; text-align: center;
+            text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .rect-btn:hover { filter: brightness(1.2); border-color: rgba(255,255,255,0.3); }
+        .rect-btn:active { transform: scale(0.98); }
+
+        .rand-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        #score-box { position: absolute; top: 30px; right: 30px; text-align: right; pointer-events: none; z-index: 20; }
+        .score-num { font-size: 60px; color: #fff; font-weight: 900; font-family: monospace; text-shadow: 0 0 20px #ff00cc; }
+        .score-label { color: #00ffff; font-size: 14px; letter-spacing: 2px; font-weight: bold; }
+        
+        #controls-wrapper { 
+            position: absolute; bottom: 0; left: 0; width: 100%; 
+            pointer-events: none; 
+            transition: transform 0.3s ease; 
+            z-index: 20;
+            transform: translateY(100%);
+        }
+        
+        #controls-container {
+            padding: 30px; 
+            background: linear-gradient(to top, rgba(10, 10, 14, 0.95), rgba(10, 10, 14, 0.8));
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: space-between; align-items: flex-end;
+            pointer-events: auto; 
+            backdrop-filter: blur(10px);
+        }
+
+        #ui-tab {
+            position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+            width: 80px; height: 30px;
+            background: rgba(10, 10, 14, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            color: #00ffff; font-size: 12px;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+            transition: background 0.2s;
+        }
+        #ui-tab:hover { background: rgba(30, 30, 40, 1.0); }
+
+        .dpad { display: grid; grid-template-columns: 60px 60px 60px; grid-template-rows: 60px 60px; gap: 8px; margin-left: 60px; }
+        .btn {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; color: white; font-size: 24px; cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+        .btn:active { background: rgba(0,255,255,0.4); transform: scale(0.9); }
+        .btn-up { grid-column: 2; grid-row: 1; } .btn-left { grid-column: 1; grid-row: 2; }
+        .btn-down { grid-column: 2; grid-row: 2; } .btn-right { grid-column: 3; grid-row: 2; }
+
+        .drop-btn {
+            width: 100px; height: 100px; border-radius: 50%;
+            background: radial-gradient(circle, #ff00cc, #660066);
+            border: 2px solid rgba(255,255,255,0.5);
+            box-shadow: 0 0 30px #ff00cc; color: white; font-weight: 900;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+        }
+        .drop-btn:active { transform: scale(0.95); filter: brightness(1.5); }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div id="settings-overlay"></div>
+    <div id="hamburger"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+    
+    <div id="settings-panel">
+        <div class="setting-group">
+            <div class="group-title">Master Colors</div>
+            <div class="group-content">
+                <div class="color-grid">
+                    <div class="color-item"><span class="setting-label">Frame</span><input type="color" id="col-frame" value="#111111"></div>
+                    <div class="color-item"><span class="setting-label">Floor</span><input type="color" id="col-floor" value="#050505"></div>
+                    <div class="color-item"><span class="setting-label">Glass</span><input type="color" id="col-glass" value="#ffffff"></div>
+                    <div class="color-item"><span class="setting-label">Neon</span><input type="color" id="col-chute" value="#00ffff"></div>
+                    <div class="color-item"><span class="setting-label">Light 1</span><input type="color" id="col-l1" value="#ff0088"></div>
+                    <div class="color-item"><span class="setting-label">Light 2</span><input type="color" id="col-l2" value="#00aaff"></div>
+                    <div class="color-item"><span class="setting-label">Light 3</span><input type="color" id="col-l3" value="#ffaa00"></div>
+                    <div class="color-item"><span class="setting-label">Light 4</span><input type="color" id="col-l4" value="#8800ff"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <div class="group-title">Materials</div>
+            <div class="group-content">
+                <div class="setting-row"><div class="setting-label">Glass Opacity <span class="val-disp" id="val-g-opac">1.0</span></div><input type="range" id="set-g-opac" min="0" max="1" step="0.05" value="1.0"></div>
+                <div class="setting-row"><div class="setting-label">Glass Roughness <span class="val-disp" id="val-g-rough">0.0</span></div><input type="range" id="set-g-rough" min="0" max="1" step="0.05" value="0.0"></div>
+                <div class="setting-row"><div class="setting-label">Frame Roughness <span class="val-disp" id="val-f-rough">0.4</span></div><input type="range" id="set-f-rough" min="0" max="1" step="0.05" value="0.4"></div>
+                <div class="setting-row"><div class="setting-label">Frame Metalness <span class="val-disp" id="val-f-metal">0.6</span></div><input type="range" id="set-f-metal" min="0" max="1" step="0.05" value="0.6"></div>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <div class="group-title">Claw Mechanics</div>
+            <div class="group-content">
+                <div class="setting-row"><div class="setting-label">Move Speed <span class="val-disp" id="val-c-speed">20</span></div><input type="range" id="set-c-speed" min="5" max="60" step="1" value="20"></div>
+                <div class="setting-row"><div class="setting-label">Drop Speed <span class="val-disp" id="val-c-drop">25</span></div><input type="range" id="set-c-drop" min="5" max="60" step="1" value="25"></div>
+                <div class="setting-row"><div class="setting-label">Lift Speed <span class="val-disp" id="val-c-lift">25</span></div><input type="range" id="set-c-lift" min="5" max="60" step="1" value="25"></div>
+                <div class="setting-row"><div class="setting-label">Grip Strength <span class="val-disp" id="val-c-grip">1.0</span></div><input type="range" id="set-c-grip" min="0.1" max="3.0" step="0.1" value="1.0"></div>
+                <div class="setting-row"><div class="setting-label">Grip Radius <span class="val-disp" id="val-c-rad">4.0</span></div><input type="range" id="set-c-rad" min="1.0" max="8.0" step="0.1" value="4.0"></div>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <div class="group-title">Physics Engine</div>
+            <div class="group-content">
+                <div class="setting-row"><div class="setting-label">Gravity <span class="val-disp" id="val-p-grav">-30</span></div><input type="range" id="set-p-grav" min="-100" max="-5" step="5" value="-30"></div>
+                <div class="setting-row"><div class="setting-label">Prize Bounciness <span class="val-disp" id="val-p-rest">0.3</span></div><input type="range" id="set-p-rest" min="0" max="1" step="0.1" value="0.3"></div>
+                <div class="setting-row"><div class="setting-label">Floor Friction <span class="val-disp" id="val-p-fric">0.01</span></div><input type="range" id="set-p-fric" min="0" max="1" step="0.01" value="0.01"></div>
+                <div class="setting-row"><div class="setting-label">Air Resistance <span class="val-disp" id="val-p-damp">0.0</span></div><input type="range" id="set-p-damp" min="0" max="0.5" step="0.01" value="0.0"></div>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <div class="group-title">Game Settings</div>
+            <div class="group-content">
+                <div class="setting-row"><div class="setting-label">Prize Count <span class="val-disp" id="val-g-count">80</span></div><input type="range" id="set-g-count" min="10" max="150" step="5" value="80"></div>
+                <div class="setting-row"><div class="setting-label">Prize Size <span class="val-disp" id="val-g-scale">1.0</span></div><input type="range" id="set-g-scale" min="0.5" max="2.0" step="0.1" value="1.0"></div>
+                <div class="setting-row"><div class="setting-label">Glass/Plastic Ratio <span class="val-disp" id="val-g-ratio">0.5</span></div><input type="range" id="set-g-ratio" min="0" max="1" step="0.1" value="0.5"></div>
+                
+                <div class="rand-grid">
+                    <div class="rect-btn" id="btn-rand-cols">Rand Colors</div>
+                    <div class="rect-btn" id="btn-rand-sets">Rand Settings</div>
+                </div>
+                
+                <div class="rect-btn" id="btn-respawn">Respawn Prizes</div>
+                <div class="rect-btn" id="btn-shuffle">Shuffle Colors</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="score-box">
+        <div class="score-label">PRIZES</div>
+        <div class="score-num" id="score">0</div>
+    </div>
+    
+    <div id="controls-wrapper">
+        <div id="ui-tab">▲</div>
+        <div id="controls-container">
+            <div class="dpad">
+                <div class="btn btn-up" id="btn-up">▲</div>
+                <div class="btn btn-left" id="btn-left">◀</div>
+                <div class="btn btn-down" id="btn-down">▼</div>
+                <div class="btn btn-right" id="btn-right">▶</div>
+            </div>
+            <div class="drop-btn" id="btn-drop">DROP</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CFG = {
+        arena: 30,
+        clawSpeed: 20, 
+        dropSpeed: 25, 
+        liftSpeed: 25,  
+        gripStrength: 1.0,
+        grabRadius: 4.0, 
+        grav: -30,
+        rest: 0.3,
+        fric: 0.01,
+        damp: 0.0,
+        pCount: 80,
+        pScale: 1.0,
+        pRatio: 0.5
+    };
+
+    const state = {
+        claw: { x: 0, y: 25, z: 0 }, 
+        mode: 'IDLE',
+        grabbed: null,
+        grabOffset: new THREE.Vector3(),
+        score: 0,
+        keys: {},
+        time: 0,
+        lights: [],
+        glassOpac: 1.0,
+        glassRough: 0.0,
+        ui: false, 
+        fingerBodies: []
+    };
+
+    let scene, camera, renderer;
+    let world, defaultMat, contactMat, floorMat, floorContact;
+    let prizes = [], fingers = [];
+    let clawGroup, skySphere;
+    
+    const G_DEFAULT = 1; 
+    const G_CLAW = 2;    
+    const G_PRIZE = 4;   
+
+    let mats = {
+        glass: null, frame: null, floor: null, chuteCore: null, chuteGlow: null, 
+        prizePlastic: null, prizeGlass: null, clawBody: null, chuteReflect: null
+    };
+
+    const uniforms = {
+        time: { value: 0 },
+        colA: { value: new THREE.Color(0x001a66) },
+        colB: { value: new THREE.Color(0x800066) }
+    };
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.FogExp2(0x000000, 0.008);
+
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 300);
+        camera.position.set(0, 32, 48); 
+        camera.lookAt(0, 4, 0); 
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 0.6; 
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        document.body.appendChild(renderer.domElement);
+
+        initPhysics();
+        initMaterials();
+        createAtmosphere(); 
+        createMachine();
+        createClaw();
+        spawnPrizes();
+        setupInput();
+        setupSettings();
+        animate();
+    }
+
+    function initPhysics() {
+        world = new CANNON.World();
+        world.gravity.set(0, CFG.grav, 0);
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 30; 
+        world.allowSleep = true;
+
+        defaultMat = new CANNON.Material('default');
+        floorMat = new CANNON.Material('floor');
+        
+        contactMat = new CANNON.ContactMaterial(defaultMat, defaultMat, { 
+            friction: CFG.fric, restitution: CFG.rest 
+        });
+        
+        floorContact = new CANNON.ContactMaterial(floorMat, defaultMat, {
+            friction: CFG.fric + 0.5, 
+            restitution: 0.05 
+        });
+        
+        world.addContactMaterial(contactMat);
+        world.addContactMaterial(floorContact);
+    }
+
+    function initMaterials() {
+        mats.glass = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff, metalness: 0.0, roughness: 0.4, transmission: 0.6,
+            thickness: 2.0, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false
+        });
+        mats.frame = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4, metalness: 0.6 });
+        mats.floor = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.5, metalness: 0.4 });
+        mats.chuteCore = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
+        mats.chuteGlow = new THREE.MeshPhysicalMaterial({ 
+            color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 2.0, 
+            transparent: true, opacity: 0.5, roughness: 0.4, transmission: 0.6, thickness: 1.0
+        });
+        mats.clawBody = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8, metalness: 0.2 });
+        mats.chuteReflect = new THREE.MeshPhysicalMaterial({
+            color: 0x111111, roughness: 0.1, metalness: 0.8, clearcoat: 1.0
+        });
+    }
+
+    function createAtmosphere() {
+        const hemi = new THREE.HemisphereLight(0x101010, 0x000000, 0.6); scene.add(hemi);
+        
+        const frontLight = new THREE.SpotLight(0xffffff, 1.0);
+        frontLight.position.set(0, 40, 60); 
+        frontLight.angle = 0.5;
+        frontLight.penumbra = 0.5;
+        frontLight.lookAt(0, 0, 0);
+        scene.add(frontLight);
+
+        const vShader = `varying vec3 vPos; void main() { vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+        const fShader = `
+            uniform float time; uniform vec3 colA; uniform vec3 colB; varying vec3 vPos;
+            float noise(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453); }
+            void main() {
+                float n = noise(vPos * 0.05 + time * 0.1);
+                vec3 c = mix(colA, colB, abs(sin(vPos.y * 0.02 + time)));
+                gl_FragColor = vec4(c * (0.5 + n * 0.5), 1.0);
+            }
+        `;
+        const sky = new THREE.Mesh(new THREE.SphereGeometry(200, 32, 32), new THREE.ShaderMaterial({
+            uniforms: uniforms, vertexShader: vShader, fragmentShader: fShader, side: THREE.BackSide
+        }));
+        scene.add(sky);
+        const colors = [0xff0088, 0x00aaff, 0xffaa00, 0x8800ff];
+        colors.forEach((c, i) => {
+            const l = new THREE.PointLight(c, 5.0, 300, 2.0);
+            l.castShadow = true; l.shadow.radius = 4;
+            l.shadow.mapSize.width = 1024; l.shadow.mapSize.height = 1024;
+            scene.add(l);
+            state.lights.push({ obj: l, offX: Math.random()*10, offZ: Math.random()*10, spdX: 0.3+Math.random()*0.4, spdZ: 0.3+Math.random()*0.4, radX: 80+Math.random()*60, radZ: 80+Math.random()*60, yBase: 50+Math.random()*40 });
+        });
+    }
+
+    function createMachine() {
+        const h = 40; const gDim = { w: 30, h: h, t: 1.6 }; const pos = 15.0; 
+        const back = new THREE.Mesh(new THREE.BoxGeometry(gDim.w, h, gDim.t), mats.glass); back.position.set(0, 20, -pos); scene.add(back);
+        const left = new THREE.Mesh(new THREE.BoxGeometry(gDim.t, h, gDim.w), mats.glass); left.position.set(-pos, 20, 0); scene.add(left);
+        const right = new THREE.Mesh(new THREE.BoxGeometry(gDim.t, h, gDim.w), mats.glass); right.position.set(pos, 20, 0); scene.add(right);
+        const front = new THREE.Mesh(new THREE.BoxGeometry(gDim.w, h/2, gDim.t), mats.glass); front.position.set(0, 10, pos); scene.add(front);
+        const legGeo = new THREE.BoxGeometry(4, 80, 4);
+        [[ -16,16], [16,16], [-16,-16], [16,-16] ].forEach(p => { const leg = new THREE.Mesh(legGeo, mats.frame); leg.position.set(p[0], 0, p[1]); scene.add(leg); });
+        
+        const barX = new THREE.BoxGeometry(36, 2, 4); const barZ = new THREE.BoxGeometry(4, 2, 36);
+        const t1 = new THREE.Mesh(barX, mats.frame); t1.position.set(0, 41, 16); scene.add(t1);
+        const t2 = new THREE.Mesh(barX, mats.frame); t2.position.set(0, 41, -16); scene.add(t2);
+        const t3 = new THREE.Mesh(barZ, mats.frame); t3.position.set(-16, 41, 0); scene.add(t3);
+        const t4 = new THREE.Mesh(barZ, mats.frame); t4.position.set(16, 41, 0); scene.add(t4);
+        const b1 = new THREE.Mesh(barX, mats.frame); b1.position.set(0, -1, 16); scene.add(b1);
+        const b2 = new THREE.Mesh(barX, mats.frame); b2.position.set(0, -1, -16); scene.add(b2);
+        const b3 = new THREE.Mesh(barZ, mats.frame); b3.position.set(-16, -1, 0); scene.add(b3);
+        const b4 = new THREE.Mesh(barZ, mats.frame); b4.position.set(16, -1, 0); scene.add(b4);
+        const cabF = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 2), mats.frame); cabF.position.set(0, -16, 16); cabF.renderOrder = 2; scene.add(cabF);
+        const cabB = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 2), mats.frame); cabB.position.set(0, -16, -16); scene.add(cabB);
+        const cabL = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 30), mats.frame); cabL.position.set(-16, -16, 0); scene.add(cabL);
+        const cabR = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 30), mats.frame); cabR.position.set(16, -16, 0); scene.add(cabR);
+        
+        const f1 = new THREE.Mesh(new THREE.BoxGeometry(20, 2, 30), mats.floor); f1.position.set(5, -1, 0); f1.receiveShadow = true; scene.add(f1);
+        const f2 = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 20), mats.floor); f2.position.set(-10, -1, -5); f2.receiveShadow = true; scene.add(f2);
+        
+        const pF1 = new CANNON.Body({ mass: 0, material: floorMat }); 
+        pF1.addShape(new CANNON.Box(new CANNON.Vec3(10, 1, 15))); pF1.position.set(5, -1, 0); 
+        pF1.collisionFilterGroup = G_DEFAULT; pF1.collisionFilterMask = G_PRIZE | G_CLAW; world.addBody(pF1);
+        
+        const pF2 = new CANNON.Body({ mass: 0, material: floorMat }); 
+        pF2.addShape(new CANNON.Box(new CANNON.Vec3(5, 1, 10))); pF2.position.set(-10, -1, -5); 
+        pF2.collisionFilterGroup = G_DEFAULT; pF2.collisionFilterMask = G_PRIZE | G_CLAW; world.addBody(pF2);
+        
+        const addPhyWall = (x, z, w, d) => { 
+            const b = new CANNON.Body({ mass: 0 }); 
+            b.addShape(new CANNON.Box(new CANNON.Vec3(w/2 + 2, 20, d/2 + 2))); 
+            b.position.set(x, 20, z); 
+            b.collisionFilterGroup = G_DEFAULT;
+            b.collisionFilterMask = G_PRIZE | G_CLAW;
+            world.addBody(b); 
+        };
+        addPhyWall(0, -18, 30, 1); addPhyWall(0, 18, 30, 1); addPhyWall(-18, 0, 1, 30); addPhyWall(18, 0, 1, 30);
+        
+        const postGeo = new THREE.CylinderGeometry(0.6, 0.6, 1.5, 16);
+        const post = new THREE.Mesh(postGeo, mats.chuteCore); post.position.set(-5, 0.75, 5); scene.add(post);
+        const postG = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.6, 16), mats.chuteGlow); postG.position.set(-5, 0.75, 5); scene.add(postG);
+        
+        const vRail = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.5, 10), mats.chuteCore); vRail.position.set(-5, 0.75, 10); scene.add(vRail);
+        const vRailG = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.6, 10), mats.chuteGlow); vRailG.position.set(-5, 0.75, 10); scene.add(vRailG);
+        const hRail = new THREE.Mesh(new THREE.BoxGeometry(10, 1.5, 0.4), mats.chuteCore); hRail.position.set(-10, 0.75, 5); scene.add(hRail);
+        const hRailG = new THREE.Mesh(new THREE.BoxGeometry(10, 1.6, 0.8), mats.chuteGlow); hRailG.position.set(-10, 0.75, 5); scene.add(hRailG);
+        
+        const pbV = new CANNON.Body({ mass: 0 }); pbV.addShape(new CANNON.Box(new CANNON.Vec3(0.2, 2, 5))); pbV.position.set(-5, 1, 10); 
+        pbV.collisionFilterGroup = G_DEFAULT; pbV.collisionFilterMask = G_PRIZE | G_CLAW; world.addBody(pbV);
+        
+        const pbH = new CANNON.Body({ mass: 0 }); pbH.addShape(new CANNON.Box(new CANNON.Vec3(5, 2, 0.2))); pbH.position.set(-10, 1, 5); 
+        pbH.collisionFilterGroup = G_DEFAULT; pbH.collisionFilterMask = G_PRIZE | G_CLAW; world.addBody(pbH);
+        
+        const pbCorner = new CANNON.Body({ mass: 0 }); pbCorner.addShape(new CANNON.Box(new CANNON.Vec3(0.3, 2, 0.3))); pbCorner.position.set(-5, 1, 5); 
+        pbCorner.collisionFilterGroup = G_DEFAULT; pbCorner.collisionFilterMask = G_PRIZE | G_CLAW; world.addBody(pbCorner);
+        
+        const cw1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 40, 10), mats.chuteReflect); cw1.position.set(-5.05, -20, 10); cw1.receiveShadow = false; scene.add(cw1);
+        const cw2 = new THREE.Mesh(new THREE.BoxGeometry(10, 40, 0.1), mats.chuteReflect); cw2.position.set(-10, -20, 5.05); cw2.receiveShadow = false; scene.add(cw2);
+        const cw3 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 40, 10), mats.chuteReflect); cw3.position.set(-14.95, -20, 10); cw3.receiveShadow = false; scene.add(cw3);
+        const cw4 = new THREE.Mesh(new THREE.BoxGeometry(10, 40, 0.1), mats.chuteReflect); cw4.position.set(-10, -20, 14.95); cw4.receiveShadow = false; scene.add(cw4);
+    }
+
+    function createClaw() {
+        if(clawGroup) scene.remove(clawGroup);
+        state.fingerBodies.forEach(b => world.removeBody(b));
+        state.fingerBodies = [];
+
+        clawGroup = new THREE.Group();
+        const mMatte = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.9, metalness: 0.1 });
+        const mDark = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+
+        const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 40), mDark);
+        cab.position.y = 20; clawGroup.add(cab);
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1.2, 16), mMatte);
+        clawGroup.add(hub);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(1.5, 16, 16, 0, 6.28, 0, 1.57), mMatte);
+        cap.position.y = 0.6; clawGroup.add(cap);
+
+        fingers = [];
+        for(let i=0; i<3; i++) {
+            const anchor = new THREE.Group();
+            anchor.rotation.y = i * (Math.PI*2/3);
+            clawGroup.add(anchor);
+
+            const pivot = new THREE.Group();
+            pivot.position.set(0, -0.5, 1.2);
+            anchor.add(pivot);
+
+            const joint = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), mDark);
+            joint.position.set(0, 0, 0); 
+            pivot.add(joint);
+
+            // RESTORED THICKNESS
+            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 2.5), mMatte);
+            arm.position.set(0, -1.3, 0.3); 
+            arm.rotation.x = -0.3; 
+            pivot.add(arm);
+            
+            const knuckle = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), mDark);
+            knuckle.position.set(0, -2.5, 0.7);
+            pivot.add(knuckle);
+
+            const talon = new THREE.Mesh(new THREE.ConeGeometry(0.15, 2.5, 16), mMatte);
+            talon.position.set(0, -3.7, 0.4); 
+            talon.rotation.x = 0.5; 
+            pivot.add(talon);
+            
+            fingers.push({ 
+                mesh: pivot, 
+                angleOffset: i * (Math.PI*2/3) 
+            }); 
+            
+            // WIDER BOX COLLIDER for better shoving
+            const b = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC });
+            b.addShape(new CANNON.Box(new CANNON.Vec3(0.3, 2.0, 0.3))); 
+            b.position.set(0, -100, 0); 
+            b.collisionFilterGroup = G_CLAW;
+            b.collisionFilterMask = G_PRIZE | G_DEFAULT;
+            world.addBody(b);
+            state.fingerBodies.push(b);
+        }
+        scene.add(clawGroup);
+        
+        const cl = new THREE.SpotLight(0xffaa00, 2.0, 60, 1.2, 1.0, 1); 
+        cl.position.y = 0; cl.target.position.set(0,-10,0); 
+        clawGroup.add(cl); clawGroup.add(cl.target);
+    }
+
+    function spawnPrizes() {
+        prizes.forEach(p => { scene.remove(p.mesh); world.removeBody(p.body); });
+        prizes = [];
+        const geos = [
+            new THREE.IcosahedronGeometry(1.5), new THREE.DodecahedronGeometry(1.5),
+            new THREE.BoxGeometry(2,2,2), new THREE.TorusGeometry(1, 0.4, 16, 32)
+        ];
+
+        const spawnedPos = [];
+        
+        for(let i=0; i<CFG.pCount; i++) {
+            let x, y, z;
+            let attempts = 0;
+            let safe = false;
+            
+            do {
+                attempts++;
+                x = (Math.random()-0.5)*22; 
+                z = (Math.random()-0.5)*22;
+                if (x < -2 && z > 2) continue; 
+                
+                y = 5 + Math.random() * 20; 
+                
+                let overlaps = false;
+                for(let prev of spawnedPos) {
+                    const dist = Math.sqrt((x-prev.x)**2 + (y-prev.y)**2 + (z-prev.z)**2);
+                    if(dist < 3.5) { 
+                        overlaps = true;
+                        break; 
+                    }
+                }
+                
+                if(!overlaps) {
+                    safe = true;
+                    spawnedPos.push({x,y,z});
+                }
+                
+            } while (!safe && attempts < 50);
+
+            if(!safe && attempts >= 50) continue; 
+
+            const col = new THREE.Color().setHSL(Math.random(), 0.8, 0.5);
+            const isGlass = Math.random() < (1.0 - CFG.pRatio);
+            
+            let mat, mesh;
+            if (isGlass) {
+                mat = new THREE.MeshPhysicalMaterial({ 
+                    color: col, roughness: 0.4, metalness: 0.1, transmission: 0.6, thickness: 2.5, ior: 1.5,
+                    clearcoat: 1.0, side: THREE.DoubleSide, transparent: true, opacity: 1.0 
+                });
+                mesh = new THREE.Mesh(geos[Math.floor(Math.random()*geos.length)], mat);
+            } else {
+                mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.6, metalness: 0.1 });
+                mesh = new THREE.Mesh(geos[Math.floor(Math.random()*geos.length)], mat);
+            }
+
+            mesh.scale.setScalar(CFG.pScale);
+            mesh.castShadow = true; mesh.receiveShadow = true;
+            mesh.position.set(x, y, z);
+            mesh.rotation.set(Math.random()*6.28, Math.random()*6.28, Math.random()*6.28);
+            scene.add(mesh);
+
+            const body = new CANNON.Body({ mass: 1, material: defaultMat });
+            
+            body.addShape(new CANNON.Sphere(1.45 * CFG.pScale)); 
+            
+            body.position.copy(mesh.position);
+            body.linearDamping = 0.1; 
+            body.angularDamping = 0.1;
+            body.ccdSpeedThreshold = 0.1; 
+            body.ccdIterations = 5;
+            body.collisionFilterGroup = G_PRIZE;
+            body.collisionFilterMask = G_DEFAULT | G_PRIZE | G_CLAW;
+
+            world.addBody(body);
+            prizes.push({ mesh, body });
+        }
+    }
+
+    function setupSettings() {
+        const panel = document.getElementById('settings-panel');
+        const overlay = document.getElementById('settings-overlay');
+        const toggleMenu = () => {
+            const isOpen = panel.style.display === 'flex';
+            panel.style.display = isOpen ? 'none' : 'flex';
+            overlay.style.display = isOpen ? 'none' : 'block';
+        };
+        document.getElementById('hamburger').onclick = toggleMenu;
+        overlay.onclick = toggleMenu;
+        window.addEventListener('keydown', (e) => { if(e.key === 'Escape' && panel.style.display === 'flex') toggleMenu(); });
+
+        const randColor = () => '#' + Math.floor(Math.random()*16777215).toString(16);
+        
+        document.getElementById('btn-rand-cols').onclick = () => {
+            const ids = ['col-frame', 'col-floor', 'col-glass', 'col-chute', 'col-l1', 'col-l2', 'col-l3', 'col-l4'];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                el.value = randColor();
+                el.dispatchEvent(new Event('input'));
+            });
+        };
+
+        document.getElementById('btn-rand-sets').onclick = () => {
+            const rnd = (min, max) => Math.random() * (max - min) + min;
+            
+            const sets = [
+                { id: 'set-p-grav', min: -100, max: -5 },
+                { id: 'set-c-speed', min: 10, max: 50 },
+                { id: 'set-c-grip', min: 0.5, max: 2.0 },
+                { id: 'set-p-rest', min: 0.1, max: 0.9 }
+            ];
+            
+            sets.forEach(s => {
+                const el = document.getElementById(s.id);
+                el.value = rnd(s.min, s.max);
+                el.dispatchEvent(new Event('input'));
+            });
+        };
+        
+        // DEBOUNCE SPAWN
+        let spawnTimer;
+        const triggerSpawn = () => {
+            clearTimeout(spawnTimer);
+            spawnTimer = setTimeout(spawnPrizes, 200);
+        };
+
+        const bind = (id, obj, key, isCol=false) => {
+            const el = document.getElementById(id);
+            el.oninput = (e) => {
+                // FIX: Check isCol correctly
+                const val = isCol ? e.target.value : parseFloat(e.target.value);
+                if(!isCol) {
+                    const disp = document.getElementById(id.replace('set','val').replace('col','val'));
+                    if(disp) disp.innerText = val.toFixed ? val.toFixed(2) : val;
+                }
+                
+                if (id === 'col-chute') {
+                    mats.chuteCore.color.set(val); mats.chuteGlow.color.set(val); mats.chuteGlow.emissive.set(val);
+                } else if (id === 'col-frame') mats.frame.color.set(val);
+                else if (id === 'col-floor') mats.floor.color.set(val);
+                else if (id === 'col-glass') mats.glass.color.set(val);
+                else if (id.startsWith('col-l')) {
+                    const idx = parseInt(id.charAt(5)) - 1;
+                    if(state.lights[idx]) state.lights[idx].obj.color.set(val);
+                }
+                else if (id === 'set-g-opac') mats.glass.opacity = val; 
+                else if (id === 'set-g-rough') mats.glass.roughness = val;
+                else if (id === 'set-f-rough') mats.frame.roughness = val;
+                else if (id === 'set-f-metal') mats.frame.metalness = val;
+                else if (id === 'set-p-grav') world.gravity.set(0, val, 0);
+                else if (id === 'set-p-rest') {
+                    contactMat.restitution = val;
+                    floorContact.restitution = val * 0.1; 
+                }
+                else if (id === 'set-p-fric') {
+                    contactMat.friction = val;
+                    floorContact.friction = val + 0.5;
+                }
+                else if (id === 'set-p-damp') prizes.forEach(p => p.body.linearDamping = val);
+                
+                // CONFIG UPDATES
+                else if (id === 'set-c-speed') CFG.clawSpeed = val;
+                else if (id === 'set-c-drop') CFG.dropSpeed = val;
+                else if (id === 'set-c-lift') CFG.liftSpeed = val;
+                else if (id === 'set-c-grip') CFG.gripStrength = val;
+                else if (id === 'set-c-rad') CFG.grabRadius = val;
+                
+                // SPAWN TRIGGERS
+                else if (id === 'set-g-count') { CFG.pCount = val; triggerSpawn(); }
+                else if (id === 'set-g-scale') { CFG.pScale = val; triggerSpawn(); }
+                else if (id === 'set-g-ratio') { CFG.pRatio = val; triggerSpawn(); }
+                
+                else if(obj) obj[key] = val;
+            };
+        };
+
+        ['set-c-speed','set-c-drop','set-c-lift','set-c-grip','set-c-rad','set-g-count','set-g-scale','set-g-ratio']
+            .forEach(id => bind(id, null, null)); 
+            
+        ['set-g-opac','set-g-rough','set-f-rough','set-f-metal','set-p-grav','set-p-rest','set-p-fric','set-p-damp',
+         'col-frame','col-floor','col-glass','col-chute','col-l1','col-l2','col-l3','col-l4'].forEach(id => bind(id, {}, '', id.startsWith('col-'))); // Pass true for colors
+
+        document.getElementById('btn-respawn').onclick = spawnPrizes;
+        document.getElementById('btn-shuffle').onclick = () => { prizes.forEach(p => p.mesh.material.color.setHSL(Math.random(), 0.8, 0.5)); };
+    }
+
+    function setupInput() {
+        const onKey = (k, v) => {
+            state.keys[k] = v; 
+            if(state.mode === 'IDLE') {
+                if(k==='Space' && v) state.mode = 'DESCENDING';
+            }
+        };
+        window.onkeydown = e => onKey(e.code, true);
+        window.onkeyup = e => onKey(e.code, false);
+        ['up','down','left','right'].forEach(dir => {
+            const btn = document.getElementById('btn-'+dir);
+            const key = 'Arrow' + dir.charAt(0).toUpperCase() + dir.slice(1);
+            btn.onmousedown = () => state.keys[key] = true;
+            btn.onmouseup = () => state.keys[key] = false;
+            btn.ontouchstart = (e) => { e.preventDefault(); state.keys[key] = true; };
+            btn.ontouchend = (e) => { e.preventDefault(); state.keys[key] = false; };
+        });
+        const drop = document.getElementById('btn-drop');
+        const doDrop = (e) => { if(e) e.preventDefault(); if(state.mode==='IDLE') state.mode='DESCENDING'; };
+        drop.onmousedown = doDrop; drop.ontouchstart = doDrop;
+
+        const toggleBtn = document.getElementById('ui-tab');
+        const wrapper = document.getElementById('controls-wrapper');
+        toggleBtn.onclick = () => {
+            state.ui = !state.ui;
+            wrapper.style.transform = state.ui ? 'translateY(0)' : 'translateY(100%)';
+            toggleBtn.innerText = state.ui ? '▼' : '▲';
+        };
+    }
+
+    function updateGame(dt) {
+        uniforms.time.value += dt;
+        state.lights.forEach(l => {
+            const t = uniforms.time.value;
+            l.obj.position.x = Math.sin(t * l.spdX + l.offX) * l.radX;
+            l.obj.position.z = Math.cos(t * l.spdZ + l.offZ) * l.radZ;
+            l.obj.position.y = l.yBase + Math.sin(t * 0.2 + l.offX) * 20; 
+        });
+
+        if(state.mode === 'IDLE') {
+            const spd = CFG.clawSpeed * dt;
+            if(state.keys.ArrowLeft) state.claw.x = Math.max(-13, state.claw.x - spd);
+            if(state.keys.ArrowRight) state.claw.x = Math.min(13, state.claw.x + spd);
+            if(state.keys.ArrowUp) state.claw.z = Math.max(-13, state.claw.z - spd);
+            if(state.keys.ArrowDown) state.claw.z = Math.min(13, state.claw.z + spd);
+            
+            clawGroup.rotation.x = 0;
+            clawGroup.rotation.z = 0;
+            
+            fingers.forEach(f => f.mesh.rotation.x = THREE.MathUtils.lerp(f.mesh.rotation.x, -0.3, 0.1));
+        }
+
+        if(state.mode === 'DESCENDING') {
+            state.claw.y -= CFG.dropSpeed * dt;
+            fingers.forEach(f => f.mesh.rotation.x = THREE.MathUtils.lerp(f.mesh.rotation.x, -2.0, 0.15));
+            
+            if(state.claw.y < 6.0) {
+                state.mode = 'GRABBING';
+                let best=null, minD=CFG.grabRadius;
+                const tipY = state.claw.y - 4.0;
+                
+                prizes.forEach(p => {
+                    const dx = p.mesh.position.x - state.claw.x;
+                    const dy = p.mesh.position.y - tipY;
+                    const dz = p.mesh.position.z - state.claw.z;
+                    const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    if(d < minD) { minD=d; best=p; }
+                });
+                setTimeout(() => {
+                    if(best && Math.random() < CFG.gripStrength) {
+                        state.grabbed = best;
+                        state.grabOffset.copy(best.mesh.position).sub(clawGroup.position);
+                        best.body.type = CANNON.Body.KINEMATIC;
+                        best.body.collisionFilterMask = 0; 
+                        best.body.velocity.set(0,0,0);
+                        best.body.angularVelocity.set(0,0,0); 
+                    }
+                    state.mode = 'ASCENDING';
+                }, 500);
+            }
+        }
+        else if(state.mode === 'GRABBING') {
+             // FIX: Consistent hold angle (0.1) for both phases
+             const targetAngle = state.grabbed ? 0.1 : 0.5;
+             fingers.forEach(f => f.mesh.rotation.x = THREE.MathUtils.lerp(f.mesh.rotation.x, targetAngle, 0.2));
+        }
+        else if(state.mode === 'ASCENDING') {
+            state.claw.y += CFG.liftSpeed * dt;
+            // FIX: SLOW LERP (0.05) for smooth hold
+            const targetAngle = state.grabbed ? 0.1 : 0.5;
+            fingers.forEach(f => f.mesh.rotation.x = THREE.MathUtils.lerp(f.mesh.rotation.x, targetAngle, 0.05));
+            
+            if(state.grabbed) {
+                const idealOffset = new THREE.Vector3(0, -3.8, 0);
+                state.grabOffset.lerp(idealOffset, 0.03); 
+                const pos = new THREE.Vector3().copy(state.grabOffset);
+                pos.applyEuler(clawGroup.rotation);
+                pos.add(clawGroup.position);
+                state.grabbed.body.position.copy(pos);
+                state.grabbed.body.velocity.set(0,0,0);
+                state.grabbed.body.angularVelocity.set(0,0,0); 
+                state.grabbed.body.quaternion.copy(clawGroup.quaternion); 
+            }
+            if(state.claw.y >= 22) state.mode = 'RETURNING';
+        }
+        else if(state.mode === 'RETURNING') {
+            const targetAngle = state.grabbed ? 0.1 : 0.5;
+            fingers.forEach(f => f.mesh.rotation.x = THREE.MathUtils.lerp(f.mesh.rotation.x, targetAngle, 0.05));
+            
+            const tx = -10, tz = 10; 
+            const dx = tx - state.claw.x, dz = tz - state.claw.z;
+            const d = Math.sqrt(dx*dx + dz*dz);
+            const spd = CFG.clawSpeed * dt; 
+            
+            if (d < 0.5) {
+                state.mode = 'DROPPING';
+                if(state.grabbed) {
+                    state.grabbed.body.type = CANNON.Body.DYNAMIC;
+                    state.grabbed.body.collisionFilterMask = G_DEFAULT | G_PRIZE | G_CLAW;
+                    state.grabbed.body.velocity.set(0, -5, 0); 
+                    state.grabbed.body.angularVelocity.set(0, 0, 0);
+                    state.grabbed.body.wakeUp(); 
+                    
+                    state.grabbed.body.collisionFilterMask = G_DEFAULT | G_PRIZE; 
+                    const g = state.grabbed;
+                    setTimeout(() => { if(g && g.body) g.body.collisionFilterMask = G_DEFAULT | G_PRIZE | G_CLAW; }, 1000);
+                    state.grabbed = null;
+                }
+                setTimeout(() => { state.mode = 'IDLE'; }, 1000);
+            } else {
+                state.claw.x += (dx/d) * spd;
+                state.claw.z += (dz/d) * spd;
+                if(state.grabbed) {
+                    const pos = new THREE.Vector3().copy(state.grabOffset);
+                    pos.applyEuler(clawGroup.rotation);
+                    pos.add(clawGroup.position);
+                    state.grabbed.body.position.copy(pos);
+                    state.grabbed.body.velocity.set(0,0,0);
+                    state.grabbed.body.angularVelocity.set(0,0,0); 
+                    state.grabbed.body.quaternion.copy(clawGroup.quaternion); 
+                }
+            }
+        }
+        else if(state.mode === 'DROPPING') {
+            fingers.forEach(f => f.mesh.rotation.x = THREE.MathUtils.lerp(f.mesh.rotation.x, -1.0, 0.2));
+        }
+
+        clawGroup.position.copy(state.claw);
+        
+        for(let i=0; i<3; i++) {
+            if(state.fingerBodies[i]) {
+                const angle = fingers[i].angleOffset;
+                const rX = fingers[i].mesh.rotation.x; 
+                const pivotOffset = { x: 0, y: -0.5, z: 1.2 };
+                const boxDist = 2.0; 
+                const localY = -boxDist * Math.cos(rX) - 0.3 * Math.sin(rX);
+                const localZ = -boxDist * Math.sin(rX) + 0.3 * Math.cos(rX);
+                const fy = pivotOffset.y + localY;
+                const fz = pivotOffset.z + localZ;
+                const lx = fz * Math.sin(angle);
+                const lz = fz * Math.cos(angle);
+                const ly = fy;
+                state.fingerBodies[i].position.set(state.claw.x + lx, state.claw.y + ly, state.claw.z + lz);
+                const q = new CANNON.Quaternion();
+                q.setFromEuler(-rX, angle, 0, 'XYZ'); 
+                state.fingerBodies[i].quaternion.copy(q);
+            }
+        }
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const dt = 0.016;
+        updateGame(dt); 
+        world.step(dt);
+        prizes.forEach(p => {
+            p.mesh.position.copy(p.body.position);
+            p.mesh.quaternion.copy(p.body.quaternion);
+            if(p.mesh.position.y < -30 && p.mesh.position.x < -5 && p.mesh.position.z > 5 && !p.scored) {
+                p.scored = true; state.score++; document.getElementById('score').innerText = state.score;
+                scene.remove(p.mesh); world.removeBody(p.body);
+            }
+            if(p.mesh.position.y < -50) { p.body.position.set(0, 20, 0); p.body.velocity.set(0,0,0); }
+        });
+        renderer.render(scene, camera);
+    }
+
+    window.onresize = () => {
+        camera.aspect = window.innerWidth/window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    init();
+</script>
+</body>
+</html>
